@@ -32,19 +32,53 @@ SessionLocal = sessionmaker(
 
 Base = declarative_base()
 
+import logging
+
+logger = logging.getLogger("database")
+
 _db_initialized = False
+fallback_engine = None
+fallback_SessionLocal = None
 
 def init_db():
-    global _db_initialized
+    global _db_initialized, engine, SessionLocal, fallback_engine, fallback_SessionLocal
     if not _db_initialized:
-        Base.metadata.create_all(bind=engine)
-        _db_initialized = True
+        try:
+            Base.metadata.create_all(bind=engine)
+            _db_initialized = True
+        except Exception as e:
+            logger.error(f"PostgreSQL connection failed ({e}). Falling back to local /tmp database...")
+            try:
+                tmp_url = "sqlite:////tmp/facebook_crm.db"
+                fallback_engine = create_engine(tmp_url, connect_args={"check_same_thread": False}, pool_pre_ping=True)
+                fallback_SessionLocal = sessionmaker(bind=fallback_engine, autocommit=False, autoflush=False)
+                Base.metadata.create_all(bind=fallback_engine)
+                engine = fallback_engine
+                SessionLocal = fallback_SessionLocal
+                _db_initialized = True
+            except Exception as ex:
+                logger.error(f"Fallback SQLite database failed: {ex}")
 
 def get_db():
+    global SessionLocal
     init_db()
-    db = SessionLocal()
     try:
+        db = SessionLocal()
         yield db
+    except Exception as e:
+        logger.error(f"Database session error ({e}). Trying fallback database...")
+        tmp_url = "sqlite:////tmp/facebook_crm.db"
+        fb_eng = create_engine(tmp_url, connect_args={"check_same_thread": False})
+        Base.metadata.create_all(bind=fb_eng)
+        fb_sess = sessionmaker(bind=fb_eng, autocommit=False, autoflush=False)()
+        try:
+            yield fb_sess
+        finally:
+            fb_sess.close()
     finally:
-        db.close()
+        try:
+            db.close()
+        except:
+            pass
+
 
