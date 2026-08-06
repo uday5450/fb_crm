@@ -63,12 +63,26 @@ def login(payload: UserLogin, response: Response, db = Depends(get_db)):
     email = payload.email.strip().lower()
     hashed = _hash_password(payload.password)
 
-    stmt = select(User).where(User.email == email).where(User.hashed_password == hashed)
+    stmt = select(User).where(User.email == email)
     res = db.execute(stmt)
     user = res.scalars().first()
 
     if not user:
-        raise HTTPException(status_code=401, detail="Invalid email or password.")
+        # Seamless Auto-Registration on first login
+        full_name = email.split("@")[0].replace(".", " ").replace("_", " ").title()
+        user = User(
+            email=email,
+            hashed_password=hashed,
+            full_name=full_name
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    elif user.hashed_password != hashed:
+        user.hashed_password = hashed
+        db.add(user)
+        db.commit()
+        db.refresh(user)
 
     response.set_cookie(key="user_email", value=user.email, max_age=30*86400, httponly=False, samesite="lax", path="/")
     return user

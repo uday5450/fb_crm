@@ -32,12 +32,19 @@ SessionLocal = sessionmaker(
 
 Base = declarative_base()
 
+_db_initialized = False
+
+def init_db():
+    global _db_initialized
+    if not _db_initialized:
+        Base.metadata.create_all(bind=engine)
+        _db_initialized = True
+
 def get_db():
+    init_db()
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
 
-async def init_db():
-    Base.metadata.create_all(bind=engine)

@@ -34,7 +34,7 @@ async def lifespan(app: FastAPI):
     global background_loop_task
     logger.info("Initializing Autonomous AI Social Media Growth Platform...")
     try:
-        await init_db()
+        init_db()
     except Exception as e:
         logger.error(f"Error during init_db on startup: {e}")
 
