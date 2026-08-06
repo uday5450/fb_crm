@@ -74,7 +74,8 @@ app.include_router(agents.router)
 app.include_router(logs.router)
 
 # Mount Frontend static files
-frontend_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+frontend_dir = os.path.join(base_dir, "frontend")
 if os.path.exists(frontend_dir):
     app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
 
