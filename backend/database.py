@@ -9,6 +9,10 @@ if db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
 
 connect_args = {}
+if os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
+    if "sqlite" in db_url and not db_url.startswith("sqlite:////tmp"):
+        db_url = "sqlite:////tmp/facebook_crm.db"
+
 if "sqlite" in db_url:
     db_url = db_url.replace("sqlite+aiosqlite:///", "sqlite:///")
     connect_args = {"check_same_thread": False}

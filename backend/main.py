@@ -33,13 +33,17 @@ async def autonomous_background_loop():
 async def lifespan(app: FastAPI):
     global background_loop_task
     logger.info("Initializing Autonomous AI Social Media Growth Platform...")
-    await init_db()
-    
-    asyncio.create_task(orchestrator.run_full_autonomous_cycle(force=True))
-    background_loop_task = asyncio.create_task(autonomous_background_loop())
-    
+    try:
+        await init_db()
+    except Exception as e:
+        logger.error(f"Error during init_db on startup: {e}")
+
+    if not os.getenv("VERCEL") and not os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
+        asyncio.create_task(orchestrator.run_full_autonomous_cycle(force=True))
+        background_loop_task = asyncio.create_task(autonomous_background_loop())
+
     yield
-    
+
     if background_loop_task:
         background_loop_task.cancel()
     logger.info("Shutting down platform.")
